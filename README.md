@@ -1,73 +1,130 @@
 <details>
 <summary>ENG (English Version)</summary>
 
-# Keras Theory
+# Keras
+This repository contains my notes on TensorFlow and Keras, covering the fundamental concepts of deep learning model construction, training, evaluation, and practical applications.
 
-## 1. Machine Learning Foundations and High-Level Deep Learning
+## 1. TensorFlow and Keras Overview
 
-### TensorFlow (Low-Level Tensor Operations)
-- **Tensor**: The basic data structure that includes both constants and variables, and is fundamentally constant in nature.
-- **Tensor Operations**: Supports mathematical operations such as addition, `relu`, `matmul`, etc.
-- **Backpropagation**: The core method for calculating gradients during neural network training.
+### TensorFlow
 
-### Keras (High-Level Deep Learning API)
-- **Model Layers**: The fundamental building blocks of deep learning models.
-- **Loss Function**: The criterion for measuring model performance.
-- **Optimizer**: Determines how weights are updated.
-- **Metrics**: Indicators for evaluating model performance.
-- **Training Loop**: Performs mini-batch stochastic gradient descent.
+TensorFlow provides low-level operations for numerical computation and deep learning.
 
-## 2. Tensor Operations in TensorFlow
+* **Tensor**: A multidimensional data structure used to represent numerical data.
+* **Tensor Operations**: Mathematical operations such as `add`, `matmul`, and activation functions.
+* **Automatic Differentiation**: Computes gradients required for neural network training.
+* **`tf.Variable`**: Stores mutable values such as trainable model parameters.
 
-### Constant Tensors
+### Keras
+
+Keras is a high-level deep learning API for building and training neural networks.
+
+* **Layers**: Fundamental building blocks of neural networks.
+* **Models**: Organize layers into trainable structures.
+* **Loss Functions**: Measure prediction error.
+* **Optimizers**: Update model parameters using gradients.
+* **Metrics**: Evaluate model performance.
+* **Callbacks**: Control and monitor the training process.
+
+---
+
+## 2. Tensor Operations
+
+### Creating Tensors
+
 ```python
-# Main tensor creation functions
-tf.ones(shape=(2, 1))      # Tensor filled with ones
-tf.zeros(shape=(2, 1))     # Tensor filled with zeros
-tf.random.normal()         # Random numbers from normal distribution
-tf.random.uniform()        # Random numbers from uniform distribution
+tf.ones(shape=(2, 1))
+tf.zeros(shape=(2, 1))
+tf.random.normal(shape=(2, 2))
+tf.random.uniform(shape=(2, 2))
 ```
 
-### Variable Tensors
-- **tf.Variable**: A class for managing mutable state.
-- **assign()**: Assigns a value to the variable.
-- **assign_add()**: Adds to the variable value.
-- **assign_sub()**: Subtracts from the variable value.
+### Variables
 
-### Gradient Calculation
-- **tf.GradientTape()**: General tool for gradient calculation.
-  - Automatically tracks only trainable variable tensors.
-  - For constant tensors, manual tracking is needed with `tape.watch()`.
-  - Supports higher-order derivatives.
+```python
+x = tf.Variable(initial_value=3.0)
 
-## 3. Keras Layer Concept
+x.assign(5.0)
+x.assign_add(1.0)
+x.assign_sub(1.0)
+```
 
-### Layer Properties
-- **Definition**: A data processing module that takes one or more tensors as input and outputs one or more tensors.
-- **Weights**: One or more tensors learned through stochastic gradient descent.
-- **Tensor Format**: Each layer supports different tensor shapes:
-  - Rank-2 tensor (samples, features): Dense (fully connected) layers
-  - Rank-3 tensor (samples, timesteps, features): Recurrent layers, 1D convolutional layers
+* `tf.Variable` is mainly used for values that need to change during training.
+* Neural network weights are typically stored as variables.
 
-### Keras Layer Class Example
+### Automatic Differentiation
+
+```python
+x = tf.Variable(3.0)
+
+with tf.GradientTape() as tape:
+    y = x ** 2
+
+gradient = tape.gradient(y, x)
+```
+
+* **`tf.GradientTape()`** records operations required for gradient calculation.
+* Trainable variables are automatically tracked.
+* Constant tensors can be manually tracked using `tape.watch()`.
+* Nested gradient tapes can be used for higher-order derivatives.
+
+---
+
+## 3. Keras Layers
+
+A layer is a data-processing component that receives tensors and returns transformed tensors.
+
+### Common Layer Types
+
+| Input Type                           | Typical Layer  |
+| ------------------------------------ | -------------- |
+| `(samples, features)`                | `Dense`        |
+| `(samples, timesteps, features)`     | RNN / `Conv1D` |
+| `(samples, height, width, channels)` | `Conv2D`       |
+
+### Custom Layer
+
 ```python
 class SimpleDense(keras.layers.Layer):
     def __init__(self, units, activation=None):
-        # Define layer parameters
-    
+        super().__init__()
+        self.units = units
+        self.activation = activation
+
     def build(self, input_shape):
-        # Create weights (executed automatically on first call)
-    
+        self.w = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer="random_normal"
+        )
+        self.b = self.add_weight(
+            shape=(self.units,),
+            initializer="zeros"
+        )
+
     def call(self, inputs):
-        # Define forward pass computation
+        output = tf.matmul(inputs, self.w) + self.b
+        return output
 ```
 
-## 4. Keras Model Construction Methods
+The main components of a custom layer are:
 
-### 4.1 Sequential Model
-- **Characteristics**: The simplest way, stacking layers sequentially.
-- **Limitations**: Only supports single input, single output, and strictly sequential structures.
-- **Use Cases**: Basic neural network structures.
+* **`__init__()`**: Defines layer configuration.
+* **`build()`**: Creates trainable parameters.
+* **`call()`**: Defines the forward computation.
+
+---
+
+## 4. Keras Model Construction
+
+Keras provides three main approaches for building models.
+
+| Method                | Characteristics                              | Suitable For                                 |
+| --------------------- | -------------------------------------------- | -------------------------------------------- |
+| **Sequential API**    | Layers are connected sequentially            | Simple neural networks                       |
+| **Functional API**    | Defines models as computational graphs       | Multi-input/output and complex architectures |
+| **Model Subclassing** | Model behavior is defined directly in Python | Highly customized models                     |
+
+### 4.1 Sequential API
 
 ```python
 model = keras.Sequential([
@@ -76,167 +133,351 @@ model = keras.Sequential([
 ])
 ```
 
+Advantages:
+
+* Simple and intuitive
+* Easy to build and inspect
+
+Limitations:
+
+* Best suited for linear layer stacks
+* Not ideal for complex branching architectures
+
 ### 4.2 Functional API
-- **Characteristics**: Can handle graph-like model structures.
-- **Advantages**: A good balance between usability and flexibility.
-- **Use Cases**: Multi-input/output, non-linear structures.
 
 ```python
 inputs = keras.Input(shape=(3,))
-features = layers.Dense(64, activation="relu")(inputs)
-outputs = layers.Dense(10, activation="softmax")(features)
+x = layers.Dense(64, activation="relu")(inputs)
+outputs = layers.Dense(10, activation="softmax")(x)
+
 model = keras.Model(inputs=inputs, outputs=outputs)
 ```
 
+Advantages:
+
+* Supports multiple inputs and outputs
+* Supports shared layers
+* Supports non-linear computational graphs
+* Easy to visualize model architecture
+
 ### 4.3 Model Subclassing
-- **Characteristics**: Low-level method for building from scratch.
-- **Advantages**: Complete control over all details.
-- **Disadvantages**: 
-  - Cannot output layer connection structure with `summary()`
-  - Cannot visualize structure with `plot_model()`
-  - Cannot use layers externally
 
-## 5. Model Training Process
-
-### 5.1 Compile
-Three key elements to decide for training:
-
-1.  **Loss Function**: The value to minimize during training
-    -   `CategoricalCrossentropy`, `SparseCategoricalCrossentropy`, `BinaryCrossentropy`
-2.  **Optimizer**: Determines how the network is updated
-    -   `SGD`, `RMSprop`, `Adam`, `Adagrad`
-3.  **Metrics**: Success indicators to monitor during training and validation
-    -   `CategoricalAccuracy`, `SparseCategoricalAccuracy`, `BinaryAccuracy`
-
-### 5.2 Training (Fit)
 ```python
-model.fit(
-    inputs,
-    targets,
-    epochs=5,           # Number of training epochs
-    batch_size=128,     # Batch size
-    validation_data=(val_inputs, val_targets)  # Validation data
+class CustomModel(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.dense1 = layers.Dense(64, activation="relu")
+        self.dense2 = layers.Dense(10, activation="softmax")
+
+    def call(self, inputs):
+        x = self.dense1(inputs)
+        return self.dense2(x)
+```
+
+Advantages:
+
+* Maximum flexibility
+* Suitable for custom forward-pass logic
+
+Limitations:
+
+* Model structure is less explicit than with the Functional API
+* Serialization and visualization may require additional consideration
+* More implementation responsibility is placed on the developer
+
+---
+
+## 5. Model Compilation and Training
+
+### Compile
+
+Before training, three main components are configured.
+
+| Component         | Purpose                    | Examples                                                            |
+| ----------------- | -------------------------- | ------------------------------------------------------------------- |
+| **Loss Function** | Measures prediction error  | `BinaryCrossentropy`, `CategoricalCrossentropy`, `MeanSquaredError` |
+| **Optimizer**     | Updates model parameters   | `SGD`, `RMSprop`, `Adam`, `Adagrad`                                 |
+| **Metrics**       | Measures model performance | `Accuracy`, `Precision`, `Recall`, `MAE`                            |
+
+```python
+model.compile(
+    optimizer="adam",
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
 )
 ```
 
-## 6. Major Application Examples
+### Training
 
-### 6.1 Binary Classification (IMDB Movie Reviews)
-- **Data**: 50,000 movie reviews (positive/negative)
-- **Preprocessing**: Vectorized using multi-hot encoding
-- **Model Structure**: Dense-Dense-Dense with sigmoid output
-- **Loss Function**: `binary_crossentropy`
-
-### 6.2 Multi-Class Classification (Reuters News Classification)
-- **Data**: News articles from 46 topics
-- **Preprocessing**: One-hot encoding
-- **Model Structure**: Dense-Dense-Dense with softmax output
-- **Loss Function**: `categorical_crossentropy`
-
-### 6.3 Regression (Boston Housing Price Prediction)
-- **Data**: 404 training samples, 102 test samples
-- **Preprocessing**: Data normalization required
-- **Validation Method**: k-fold cross-validation
-- **Loss Function**: `mean_squared_error`
-
-## 7. Advanced Features
-
-### 7.1 Callbacks
-Tools for monitoring and controlling the model state during training:
-- **ModelCheckpoint**: Save model weights
-- **EarlyStopping**: Early stopping
-- **LearningRateScheduler**: Dynamic learning rate adjustment
-
-### 7.2 Custom Metrics
 ```python
-class RootMeanSquaredError(keras.metrics.Metric):
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        # State update logic
-    
-    def result(self):
-        # Final result calculation
-    
-    def reset_state(self):
-        # State initialization
+history = model.fit(
+    inputs,
+    targets,
+    epochs=5,
+    batch_size=128,
+    validation_data=(val_inputs, val_targets)
+)
 ```
 
-### 7.3 Multi-Input/Output Models
-- **Input**: Various types of data (text, categorical, etc.)
-- **Output**: Various types of predictions (priority, classification, etc.)
-- **Implementation**: Use the Functional API
+Important training parameters:
+
+* **Epoch**: One complete pass through the training dataset.
+* **Batch Size**: Number of samples processed before updating model parameters.
+* **Validation Data**: Data used to evaluate generalization during training.
+
+---
+
+## 6. Major Machine Learning Tasks
+
+### Binary Classification
+
+Example: IMDB movie review sentiment classification
+
+* **Output Layer**: `Dense(1, activation="sigmoid")`
+* **Loss Function**: `binary_crossentropy`
+* **Purpose**: Predict one of two classes.
+
+### Multi-Class Classification
+
+Example: Reuters news topic classification
+
+* **Output Layer**: `Dense(num_classes, activation="softmax")`
+* **Loss Function**: `categorical_crossentropy` or `sparse_categorical_crossentropy`
+* **Purpose**: Predict one class among multiple categories.
+
+### Regression
+
+Example: Housing price prediction
+
+* **Output Layer**: Usually a single neuron without an activation function.
+* **Loss Function**: `mean_squared_error`
+* **Metrics**: `mean_absolute_error`
+* **Preprocessing**: Feature normalization is often important.
+
+---
+
+## 7. Validation and Generalization
+
+Model performance should be evaluated using data that was not directly used for training.
+
+### Validation Methods
+
+* **Hold-out Validation**
+* **K-Fold Cross-Validation**
+* **Training / Validation / Test Split**
+
+### Common Problems
+
+* **Overfitting**: Good training performance but poor validation performance.
+* **Underfitting**: Poor performance on both training and validation data.
+
+Common approaches for improving generalization include:
+
+* Regularization
+* Dropout
+* Early stopping
+* Data augmentation
+* Increasing training data
+
+---
+
+## 8. Callbacks
+
+Callbacks allow additional operations to be performed during model training.
+
+### Common Callbacks
+
+* **`ModelCheckpoint`**: Saves the model or model weights during training.
+* **`EarlyStopping`**: Stops training when performance no longer improves.
+* **`LearningRateScheduler`**: Dynamically changes the learning rate.
+* **`ReduceLROnPlateau`**: Reduces the learning rate when a monitored metric stops improving.
+
+```python
+callbacks = [
+    keras.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=3
+    )
+]
+```
+
+---
+
+## 9. Custom Metrics
+
+Custom metrics can be implemented by extending `keras.metrics.Metric`.
+
+```python
+class RootMeanSquaredError(keras.metrics.Metric):
+    def __init__(self, name="rmse", **kwargs):
+        super().__init__(name=name, **kwargs)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        pass
+
+    def result(self):
+        pass
+
+    def reset_state(self):
+        pass
+```
+
+The main methods are:
+
+* **`update_state()`**: Updates internal metric states.
+* **`result()`**: Calculates the final metric value.
+* **`reset_state()`**: Resets stored states.
+
+---
+
+## 10. Multi-Input and Multi-Output Models
+
+The Functional API can be used to construct models that process multiple types of data or generate multiple predictions.
+
+Examples:
+
+* Text + numerical features
+* Image + metadata
+* Classification + regression outputs
+
+```python
+model = keras.Model(
+    inputs=[input_a, input_b],
+    outputs=[output_a, output_b]
+)
+```
+
+This structure is useful when a single model needs to learn several related tasks or combine heterogeneous data sources.
 
 </details>
 
 <details>
 <summary>KOR (한국어 버전)</summary>
 
-# 케라스 이론
+# 케라스
+이 Repository에는 딥러닝 모델의 구성, 학습, 평가 및 활용에 필요한 TensorFlow와 Keras의 주요 개념을 정리했습니다.
 
-## 1. 머신러닝 기초와 고수준 딥러닝
+## 1. TensorFlow와 Keras
 
-### 텐서플로우 (저수준 텐서 연산)
-- **텐서**: 상수와 변수를 포함하는 기본 데이터 구조이며, 근본적으로는 불변성을 가짐.
-- **텐서 연산**: 덧셈, `relu`, `matmul` 등 수학적 연산을 지원.
-- **역전파**: 신경망 훈련 중 그래디언트 계산을 위한 핵심 방법.
+### TensorFlow
 
-### 케라스 (고수준 딥러닝 API)
-- **모델 레이어**: 딥러닝 모델의 기본 구성 요소.
-- **손실 함수**: 모델 성능을 측정하는 기준.
-- **옵티마이저**: 가중치 업데이트 방식을 결정.
-- **메트릭**: 모델 성능을 평가하기 위한 지표.
-- **훈련 루프**: 미니배치 확률적 경사 하강법을 수행.
+TensorFlow는 수치 연산과 딥러닝을 위한 저수준 연산 기능을 제공합니다.
 
-## 2. 텐서플로우에서의 텐서 연산
+* **텐서(Tensor)**: 수치 데이터를 표현하는 다차원 데이터 구조
+* **텐서 연산**: `add`, `matmul`, 활성화 함수 등의 수학적 연산
+* **자동 미분**: 신경망 학습에 필요한 그래디언트를 자동으로 계산
+* **`tf.Variable`**: 학습 가능한 모델 파라미터처럼 변경 가능한 값을 저장
 
-### 상수 텐서
+### Keras
+
+Keras는 신경망 모델을 구성하고 학습하기 위한 고수준 딥러닝 API입니다.
+
+* **Layer**: 신경망을 구성하는 기본 단위
+* **Model**: 여러 레이어를 하나의 학습 가능한 구조로 구성
+* **Loss Function**: 예측 오차 측정
+* **Optimizer**: 그래디언트를 이용하여 모델 파라미터 업데이트
+* **Metric**: 모델 성능 평가
+* **Callback**: 학습 과정 모니터링 및 제어
+
+---
+
+## 2. Tensor 연산
+
+### Tensor 생성
+
 ```python
-# 주요 텐서 생성 함수
-tf.ones(shape=(2, 1))      # 1로 채워진 텐서
-tf.zeros(shape=(2, 1))     # 0으로 채워진 텐서
-tf.random.normal()         # 정규분포에서 무작위 숫자 추출
-tf.random.uniform()        # 균등분포에서 무작위 숫자 추출
+tf.ones(shape=(2, 1))
+tf.zeros(shape=(2, 1))
+tf.random.normal(shape=(2, 2))
+tf.random.uniform(shape=(2, 2))
 ```
 
-### 변수 텐서
-- **`tf.Variable`**: 변경 가능한 상태를 관리하는 클래스.
-- **`assign()`**: 변수에 값을 할당.
-- **`assign_add()`**: 변수 값에 더하기.
-- **`assign_sub()`**: 변수 값에서 빼기.
+### Variable
 
-### 그래디언트 계산
-- **`tf.GradientTape()`**: 그래디언트 계산을 위한 일반 도구.
-  - 훈련 가능한 변수 텐서만 자동으로 추적.
-  - 상수 텐서는 `tape.watch()`로 수동 추적 필요.
-  - 고차 도함수 지원.
+```python
+x = tf.Variable(initial_value=3.0)
 
-## 3. 케라스 레이어 개념
+x.assign(5.0)
+x.assign_add(1.0)
+x.assign_sub(1.0)
+```
 
-### 레이어 속성
-- **정의**: 하나 이상의 텐서를 입력으로 받아 하나 이상의 텐서를 출력하는 데이터 처리 모듈.
-- **가중치**: 확률적 경사 하강법을 통해 학습되는 하나 이상의 텐서.
-- **텐서 형식**: 각 레이어는 다른 텐서 형태를 지원:
-  - 2차원 텐서 (샘플, 특성): 완전 연결 레이어 (`Dense`)
-  - 3차원 텐서 (샘플, 타임스텝, 특성): 순환 레이어, 1D 합성곱 레이어
+* `tf.Variable`은 학습 과정에서 변경되어야 하는 값을 저장할 때 사용
+* 신경망의 가중치와 같은 학습 파라미터가 대표적인 예
 
-### 케라스 레이어 클래스 예시
+### 자동 미분
+
+```python
+x = tf.Variable(3.0)
+
+with tf.GradientTape() as tape:
+    y = x ** 2
+
+gradient = tape.gradient(y, x)
+```
+
+* **`tf.GradientTape()`**: 그래디언트 계산에 필요한 연산을 기록
+* 학습 가능한 변수는 자동으로 추적
+* 상수 텐서는 `tape.watch()`를 이용하여 직접 추적 가능
+* 중첩하여 사용하면 고차 도함수 계산 가능
+
+---
+
+## 3. Keras Layer
+
+Layer는 하나 이상의 텐서를 입력받아 새로운 텐서를 출력하는 데이터 처리 단위입니다.
+
+### 대표적인 Layer
+
+| 입력 형태                                | 대표 Layer       |
+| ------------------------------------ | -------------- |
+| `(samples, features)`                | `Dense`        |
+| `(samples, timesteps, features)`     | RNN / `Conv1D` |
+| `(samples, height, width, channels)` | `Conv2D`       |
+
+### 사용자 정의 Layer
+
 ```python
 class SimpleDense(keras.layers.Layer):
     def __init__(self, units, activation=None):
-        # 레이어 매개변수 정의
-    
+        super().__init__()
+        self.units = units
+        self.activation = activation
+
     def build(self, input_shape):
-        # 가중치 생성 (첫 호출 시 자동 실행)
-    
+        self.w = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer="random_normal"
+        )
+        self.b = self.add_weight(
+            shape=(self.units,),
+            initializer="zeros"
+        )
+
     def call(self, inputs):
-        # 순전파 계산 정의
+        output = tf.matmul(inputs, self.w) + self.b
+        return output
 ```
 
-## 4. 케라스 모델 구성 방법
+주요 메서드:
 
-### 4.1 순차 모델
-- **특징**: 가장 간단한 방식으로, 레이어를 순차적으로 쌓음.
-- **한계**: 단일 입력, 단일 출력, 그리고 순차적인 구조만 지원.
-- **사용 사례**: 기본적인 신경망 구조.
+* **`__init__()`**: Layer 설정 정의
+* **`build()`**: 학습 가능한 파라미터 생성
+* **`call()`**: 순전파 연산 정의
+
+---
+
+## 4. Keras Model 구성 방법
+
+Keras에서는 크게 세 가지 방법으로 모델을 구성할 수 있습니다.
+
+| 방법                    | 특징                      | 주요 용도           |
+| --------------------- | ----------------------- | --------------- |
+| **Sequential API**    | Layer를 순차적으로 연결         | 단순한 신경망         |
+| **Functional API**    | 계산 그래프 형태로 모델 구성        | 다중 입출력 및 복잡한 모델 |
+| **Model Subclassing** | Python 코드로 모델 동작을 직접 정의 | 사용자 정의 모델       |
+
+### 4.1 Sequential API
 
 ```python
 model = keras.Sequential([
@@ -245,93 +486,220 @@ model = keras.Sequential([
 ])
 ```
 
-### 4.2 함수형 API
-- **특징**: 그래프와 같은 모델 구조를 다룰 수 있음.
-- **장점**: 사용성과 유연성 사이의 좋은 균형.
-- **사용 사례**: 다중 입력/출력, 비선형 구조.
+장점:
+
+* 구조가 단순하고 직관적
+* 빠르게 모델 구성 가능
+
+한계:
+
+* 순차적인 Layer 구조에 적합
+* 복잡한 분기 구조에는 적합하지 않음
+
+### 4.2 Functional API
 
 ```python
 inputs = keras.Input(shape=(3,))
-features = layers.Dense(64, activation="relu")(inputs)
-outputs = layers.Dense(10, activation="softmax")(features)
+x = layers.Dense(64, activation="relu")(inputs)
+outputs = layers.Dense(10, activation="softmax")(x)
+
 model = keras.Model(inputs=inputs, outputs=outputs)
 ```
 
-### 4.3 모델 서브클래싱
-- **특징**: 처음부터 모델을 만드는 저수준 방식.
-- **장점**: 모든 세부 사항을 완벽하게 제어.
-- **단점**: 
-  - `summary()`로 레이어 연결 구조 출력 불가
-  - `plot_model()`로 구조 시각화 불가
-  - 레이어를 외부에서 사용 불가
+장점:
 
-## 5. 모델 훈련 과정
+* 다중 입력 및 출력 지원
+* Layer 공유 가능
+* 비선형적인 계산 그래프 구성 가능
+* 모델 구조 시각화가 용이
 
-### 5.1 컴파일
-훈련을 위해 결정해야 할 세 가지 핵심 요소:
+### 4.3 Model Subclassing
 
-1.  **손실 함수**: 훈련 중에 최소화할 값.
-    -   `CategoricalCrossentropy`, `SparseCategoricalCrossentropy`, `BinaryCrossentropy`
-2.  **옵티마이저**: 신경망 업데이트 방식 결정.
-    -   `SGD`, `RMSprop`, `Adam`, `Adagrad`
-3.  **메트릭**: 훈련 및 검증 중 모니터링할 성공 지표.
-    -   `CategoricalAccuracy`, `SparseCategoricalAccuracy`, `BinaryAccuracy`
-
-### 5.2 훈련 (`Fit`)
 ```python
-model.fit(
-    inputs,
-    targets,
-    epochs=5,           # 훈련 에포크 수
-    batch_size=128,     # 배치 크기
-    validation_data=(val_inputs, val_targets)  # 검증 데이터
+class CustomModel(keras.Model):
+    def __init__(self):
+        super().__init__()
+        self.dense1 = layers.Dense(64, activation="relu")
+        self.dense2 = layers.Dense(10, activation="softmax")
+
+    def call(self, inputs):
+        x = self.dense1(inputs)
+        return self.dense2(x)
+```
+
+장점:
+
+* 높은 자유도
+* 복잡한 순전파 로직 구현 가능
+
+한계:
+
+* Functional API보다 모델 구조가 명시적이지 않음
+* 직렬화 및 시각화 시 추가 처리가 필요할 수 있음
+* 구현해야 하는 부분이 많음
+
+---
+
+## 5. Model Compile 및 Training
+
+### Compile
+
+모델 학습 전 세 가지 주요 요소를 설정합니다.
+
+| 구성 요소             | 역할           | 예시                                                                  |
+| ----------------- | ------------ | ------------------------------------------------------------------- |
+| **Loss Function** | 예측 오차 측정     | `BinaryCrossentropy`, `CategoricalCrossentropy`, `MeanSquaredError` |
+| **Optimizer**     | 모델 파라미터 업데이트 | `SGD`, `RMSprop`, `Adam`, `Adagrad`                                 |
+| **Metric**        | 모델 성능 평가     | `Accuracy`, `Precision`, `Recall`, `MAE`                            |
+
+```python
+model.compile(
+    optimizer="adam",
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
 )
 ```
 
-## 6. 주요 적용 사례
+### Training
 
-### 6.1 이진 분류 (IMDB 영화 리뷰)
-- **데이터**: 5만 개의 영화 리뷰 (긍정/부정)
-- **전처리**: 멀티-핫 인코딩으로 벡터화
-- **모델 구조**: `Dense-Dense-Dense` 구조에 `sigmoid` 출력
-- **손실 함수**: `binary_crossentropy`
-
-### 6.2 다중 클래스 분류 (로이터 뉴스 분류)
-- **데이터**: 46개 주제의 뉴스 기사
-- **전처리**: 원-핫 인코딩
-- **모델 구조**: `Dense-Dense-Dense` 구조에 `softmax` 출력
-- **손실 함수**: `categorical_crossentropy`
-
-### 6.3 회귀 (보스턴 주택 가격 예측)
-- **데이터**: 404개의 훈련 샘플, 102개의 테스트 샘플
-- **전처리**: 데이터 정규화 필요
-- **검증 방법**: K-겹 교차 검증
-- **손실 함수**: `mean_squared_error`
-
-## 7. 고급 기능
-
-### 7.1 콜백
-훈련 중 모델 상태를 모니터링하고 제어하는 도구:
-- **`ModelCheckpoint`**: 모델 가중치 저장
-- **`EarlyStopping`**: 조기 종료
-- **`LearningRateScheduler`**: 동적 학습률 조정
-
-### 7.2 사용자 정의 메트릭
 ```python
-class RootMeanSquaredError(keras.metrics.Metric):
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        # 상태 업데이트 로직
-    
-    def result(self):
-        # 최종 결과 계산
-    
-    def reset_state(self):
-        # 상태 초기화
+history = model.fit(
+    inputs,
+    targets,
+    epochs=5,
+    batch_size=128,
+    validation_data=(val_inputs, val_targets)
+)
 ```
 
-### 7.3 다중 입력/출력 모델
-- **입력**: 다양한 유형의 데이터 (텍스트, 범주형 등)
-- **출력**: 다양한 유형의 예측 (우선순위, 분류 등)
-- **구현**: 함수형 API 사용
+주요 학습 요소:
+
+* **Epoch**: 전체 학습 데이터를 한 번 학습하는 과정
+* **Batch Size**: 한 번의 파라미터 업데이트에 사용하는 데이터 수
+* **Validation Data**: 학습 중 일반화 성능을 평가하기 위한 데이터
+
+---
+
+## 6. 주요 머신러닝 문제
+
+### 이진 분류
+
+예시: IMDB 영화 리뷰 감성 분류
+
+* **출력 Layer**: `Dense(1, activation="sigmoid")`
+* **Loss Function**: `binary_crossentropy`
+* **목적**: 두 개 클래스 중 하나를 예측
+
+### 다중 클래스 분류
+
+예시: Reuters 뉴스 주제 분류
+
+* **출력 Layer**: `Dense(num_classes, activation="softmax")`
+* **Loss Function**: `categorical_crossentropy` 또는 `sparse_categorical_crossentropy`
+* **목적**: 여러 클래스 중 하나를 예측
+
+### 회귀
+
+예시: 주택 가격 예측
+
+* **출력 Layer**: 일반적으로 활성화 함수가 없는 하나의 출력 뉴런
+* **Loss Function**: `mean_squared_error`
+* **Metric**: `mean_absolute_error`
+* **전처리**: 특성 정규화가 중요한 경우가 많음
+
+---
+
+## 7. 검증과 일반화
+
+모델의 성능은 학습에 직접 사용하지 않은 데이터를 이용하여 평가해야 합니다.
+
+### 검증 방법
+
+* **Hold-out Validation**
+* **K-Fold Cross-Validation**
+* **Training / Validation / Test Split**
+
+### 주요 문제
+
+* **Overfitting**: 학습 데이터 성능은 높지만 검증 데이터 성능이 낮은 상태
+* **Underfitting**: 학습 데이터와 검증 데이터 모두에서 성능이 낮은 상태
+
+일반화 성능을 높이는 대표적인 방법:
+
+* Regularization
+* Dropout
+* Early Stopping
+* Data Augmentation
+* 학습 데이터 증가
+
+---
+
+## 8. Callback
+
+Callback은 모델 학습 과정에서 추가적인 작업을 수행하도록 하는 기능입니다.
+
+### 주요 Callback
+
+* **`ModelCheckpoint`**: 학습 중 모델 또는 가중치 저장
+* **`EarlyStopping`**: 성능 개선이 멈추면 학습 조기 종료
+* **`LearningRateScheduler`**: 학습률을 동적으로 변경
+* **`ReduceLROnPlateau`**: 특정 지표가 개선되지 않을 때 학습률 감소
+
+```python
+callbacks = [
+    keras.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=3
+    )
+]
+```
+
+---
+
+## 9. 사용자 정의 Metric
+
+`keras.metrics.Metric`을 상속하여 사용자 정의 평가 지표를 만들 수 있습니다.
+
+```python
+class RootMeanSquaredError(keras.metrics.Metric):
+    def __init__(self, name="rmse", **kwargs):
+        super().__init__(name=name, **kwargs)
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        pass
+
+    def result(self):
+        pass
+
+    def reset_state(self):
+        pass
+```
+
+주요 메서드:
+
+* **`update_state()`**: Metric 내부 상태 업데이트
+* **`result()`**: 최종 Metric 값 계산
+* **`reset_state()`**: 저장된 상태 초기화
+
+---
+
+## 10. 다중 입력 및 다중 출력 모델
+
+Functional API를 사용하면 서로 다른 여러 데이터를 입력받거나 여러 종류의 예측값을 출력하는 모델을 만들 수 있습니다.
+
+예시:
+
+* 텍스트 + 수치형 데이터
+* 이미지 + 메타데이터
+* 분류 + 회귀 출력
+
+```python
+model = keras.Model(
+    inputs=[input_a, input_b],
+    outputs=[output_a, output_b]
+)
+```
+
+하나의 모델에서 여러 종류의 데이터를 함께 처리하거나 서로 연관된 여러 작업을 동시에 학습할 때 활용할 수 있습니다.
 
 </details>
