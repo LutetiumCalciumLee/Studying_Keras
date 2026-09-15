@@ -347,6 +347,23 @@ model = keras.Model(
 )
 ```
 
+## 11. Convolutional Neural Networks
+
+Convolutional Neural Networks (CNNs) are commonly used for image processing and computer vision tasks.
+
+### Conv2D
+
+`Conv2D` applies convolutional filters to an image to extract spatial features such as edges, textures, and patterns.
+
+```python
+layers.Conv2D(
+    32,
+    kernel_size=(3, 3),
+    activation="relu"
+)
+```
+
+
 This structure is useful when a single model needs to learn several related tasks or combine heterogeneous data sources.
 
 </details>
@@ -699,6 +716,23 @@ model = keras.Model(
     outputs=[output_a, output_b]
 )
 ```
+
+## 11. 합성곱 신경망 (Convolutional Neural Networks)
+
+합성곱 신경망(CNN)은 이미지 처리와 컴퓨터 비전 분야에서 주로 사용되는 신경망 구조입니다.
+
+### Conv2D
+
+`Conv2D`는 이미지에 합성곱 필터를 적용하여 모서리, 질감, 형태와 같은 공간적 특징을 추출합니다.
+
+```python
+layers.Conv2D(
+    32,
+    kernel_size=(3, 3),
+    activation="relu"
+)
+```
+
 
 하나의 모델에서 여러 종류의 데이터를 함께 처리하거나 서로 연관된 여러 작업을 동시에 학습할 때 활용할 수 있습니다.
 
