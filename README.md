@@ -2,7 +2,11 @@
 <summary>ENG (English Version)</summary>
 
 # Keras
+
 This repository contains my notes on TensorFlow and Keras, covering the fundamental concepts of deep learning model construction, training, evaluation, and practical applications.
+
+<details>
+<summary><h2>Main Content</h2></summary>
 
 ## 1. TensorFlow and Keras Overview
 
@@ -347,6 +351,10 @@ model = keras.Model(
 )
 ```
 
+This structure is useful when a single model needs to learn several related tasks or combine heterogeneous data sources.
+
+---
+
 ## 11. Convolutional Neural Networks
 
 Convolutional Neural Networks (CNNs) are commonly used for image processing and computer vision tasks.
@@ -363,16 +371,25 @@ layers.Conv2D(
 )
 ```
 
+</details>
 
-This structure is useful when a single model needs to learn several related tasks or combine heterogeneous data sources.
+<details>
+<summary><h2>Projects</h2></summary>
+
+* [Rock Paper Scissors CNN Classification](https://github.com/LutetiumCalciumLee/Studying_Keras/tree/Rock_Paper_Scissors_CNN_Classification)
+
+</details>
 
 </details>
 
 <details>
 <summary>KOR (한국어 버전)</summary>
 
-# 케라스
+# Keras
 이 Repository에는 딥러닝 모델의 구성, 학습, 평가 및 활용에 필요한 TensorFlow와 Keras의 주요 개념을 정리했습니다.
+
+<details>
+<summary><h2>주요 내용</h2></summary>
 
 ## 1. TensorFlow와 Keras
 
@@ -717,6 +734,10 @@ model = keras.Model(
 )
 ```
 
+하나의 모델에서 여러 종류의 데이터를 함께 처리하거나 서로 연관된 여러 작업을 동시에 학습할 때 활용할 수 있습니다.
+
+---
+
 ## 11. 합성곱 신경망 (Convolutional Neural Networks)
 
 합성곱 신경망(CNN)은 이미지 처리와 컴퓨터 비전 분야에서 주로 사용되는 신경망 구조입니다.
@@ -733,7 +754,13 @@ layers.Conv2D(
 )
 ```
 
+</details>
 
-하나의 모델에서 여러 종류의 데이터를 함께 처리하거나 서로 연관된 여러 작업을 동시에 학습할 때 활용할 수 있습니다.
+<details>
+<summary><h2>프로젝트</h2></summary>
+
+* [Rock Paper Scissors CNN Classification](https://github.com/LutetiumCalciumLee/Studying_Keras/tree/Rock_Paper_Scissors_CNN_Classification)
+
+</details>
 
 </details>
