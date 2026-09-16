@@ -1,739 +1,1010 @@
 <details>
 <summary>ENG (English Version)</summary>
 
-# Keras
-This repository contains my notes on TensorFlow and Keras, covering the fundamental concepts of deep learning model construction, training, evaluation, and practical applications.
+# Rock Paper Scissors CNN Classification
 
-## 1. TensorFlow and Keras Overview
+This project builds a Convolutional Neural Network (CNN) using TensorFlow and Keras to classify images into Rock, Paper, and Scissors.
 
-### TensorFlow
+A basic CNN was first trained as a baseline model. The model was then improved using **Data Augmentation, Dropout, EarlyStopping, ReduceLROnPlateau, and ModelCheckpoint**.
 
-TensorFlow provides low-level operations for numerical computation and deep learning.
-
-* **Tensor**: A multidimensional data structure used to represent numerical data.
-* **Tensor Operations**: Mathematical operations such as `add`, `matmul`, and activation functions.
-* **Automatic Differentiation**: Computes gradients required for neural network training.
-* **`tf.Variable`**: Stores mutable values such as trainable model parameters.
-
-### Keras
-
-Keras is a high-level deep learning API for building and training neural networks.
-
-* **Layers**: Fundamental building blocks of neural networks.
-* **Models**: Organize layers into trainable structures.
-* **Loss Functions**: Measure prediction error.
-* **Optimizers**: Update model parameters using gradients.
-* **Metrics**: Evaluate model performance.
-* **Callbacks**: Control and monitor the training process.
+In addition to evaluating the model on the original Kaggle test dataset, I also tested it on **15 images captured in a real-world environment** to examine how well the model generalizes beyond the original dataset.
 
 ---
 
-## 2. Tensor Operations
+## 1. Project Overview
 
-### Creating Tensors
+### Objective
 
-```python
-tf.ones(shape=(2, 1))
-tf.zeros(shape=(2, 1))
-tf.random.normal(shape=(2, 2))
-tf.random.uniform(shape=(2, 2))
+The goal of this project is to classify input images into three classes:
+
+* `paper`
+* `rock`
+* `scissors`
+
+Rather than focusing only on training accuracy, this project explores the complete image classification workflow:
+
+```text
+Dataset
+   ↓
+Baseline CNN
+   ↓
+Model Evaluation
+   ↓
+Generalization Improvement
+   ↓
+Improved CNN
+   ↓
+Kaggle Test Evaluation
+   ↓
+Real-World Image Evaluation
 ```
 
-### Variables
+The main objective was to compare the baseline and improved models and investigate whether strong performance on the original test dataset also transfers to images captured under different conditions.
 
-```python
-x = tf.Variable(initial_value=3.0)
+### Development Environment
 
-x.assign(5.0)
-x.assign_add(1.0)
-x.assign_sub(1.0)
-```
-
-* `tf.Variable` is mainly used for values that need to change during training.
-* Neural network weights are typically stored as variables.
-
-### Automatic Differentiation
-
-```python
-x = tf.Variable(3.0)
-
-with tf.GradientTape() as tape:
-    y = x ** 2
-
-gradient = tape.gradient(y, x)
-```
-
-* **`tf.GradientTape()`** records operations required for gradient calculation.
-* Trainable variables are automatically tracked.
-* Constant tensors can be manually tracked using `tape.watch()`.
-* Nested gradient tapes can be used for higher-order derivatives.
+* Google Colab
+* Python
+* TensorFlow
+* Keras
+* NumPy
+* Matplotlib
+* Scikit-learn
+* KaggleHub
 
 ---
 
-## 3. Keras Layers
+## 2. Dataset
 
-A layer is a data-processing component that receives tensors and returns transformed tensors.
+The Rock Paper Scissors Dataset from Kaggle was used.
 
-### Common Layer Types
-
-| Input Type                           | Typical Layer  |
-| ------------------------------------ | -------------- |
-| `(samples, features)`                | `Dense`        |
-| `(samples, timesteps, features)`     | RNN / `Conv1D` |
-| `(samples, height, width, channels)` | `Conv2D`       |
-
-### Custom Layer
-
-```python
-class SimpleDense(keras.layers.Layer):
-    def __init__(self, units, activation=None):
-        super().__init__()
-        self.units = units
-        self.activation = activation
-
-    def build(self, input_shape):
-        self.w = self.add_weight(
-            shape=(input_shape[-1], self.units),
-            initializer="random_normal"
-        )
-        self.b = self.add_weight(
-            shape=(self.units,),
-            initializer="zeros"
-        )
-
-    def call(self, inputs):
-        output = tf.matmul(inputs, self.w) + self.b
-        return output
+```text
+sanikamal/rock-paper-scissors-dataset
 ```
 
-The main components of a custom layer are:
+All images were resized to:
 
-* **`__init__()`**: Defines layer configuration.
-* **`build()`**: Creates trainable parameters.
-* **`call()`**: Defines the forward computation.
+```text
+150 × 150 × 3
+```
+
+Dataset structure:
+
+```text
+Training Dataset
+    │
+    ├── 80% Training
+    │
+    └── 20% Validation
+
+Test Dataset
+    └── Separate Test Images
+```
+
+Main configuration:
+
+```python
+IMG_SIZE = (150, 150)
+BATCH_SIZE = 32
+SEED = 42
+```
+
+The datasets were created using Keras `image_dataset_from_directory()`.
 
 ---
 
-## 4. Keras Model Construction
+## 3. Data Preprocessing
 
-Keras provides three main approaches for building models.
-
-| Method                | Characteristics                              | Suitable For                                 |
-| --------------------- | -------------------------------------------- | -------------------------------------------- |
-| **Sequential API**    | Layers are connected sequentially            | Simple neural networks                       |
-| **Functional API**    | Defines models as computational graphs       | Multi-input/output and complex architectures |
-| **Model Subclassing** | Model behavior is defined directly in Python | Highly customized models                     |
-
-### 4.1 Sequential API
+Image pixel values were normalized inside the model using:
 
 ```python
-model = keras.Sequential([
-    layers.Dense(64, activation="relu"),
-    layers.Dense(10, activation="softmax")
-])
+layers.Rescaling(1.0 / 255)
 ```
 
-Advantages:
+This converts pixel values from:
 
-* Simple and intuitive
-* Easy to build and inspect
-
-Limitations:
-
-* Best suited for linear layer stacks
-* Not ideal for complex branching architectures
-
-### 4.2 Functional API
-
-```python
-inputs = keras.Input(shape=(3,))
-x = layers.Dense(64, activation="relu")(inputs)
-outputs = layers.Dense(10, activation="softmax")(x)
-
-model = keras.Model(inputs=inputs, outputs=outputs)
+```text
+0 ~ 255
+   ↓
+0 ~ 1
 ```
 
-Advantages:
-
-* Supports multiple inputs and outputs
-* Supports shared layers
-* Supports non-linear computational graphs
-* Easy to visualize model architecture
-
-### 4.3 Model Subclassing
-
-```python
-class CustomModel(keras.Model):
-    def __init__(self):
-        super().__init__()
-        self.dense1 = layers.Dense(64, activation="relu")
-        self.dense2 = layers.Dense(10, activation="softmax")
-
-    def call(self, inputs):
-        x = self.dense1(inputs)
-        return self.dense2(x)
-```
-
-Advantages:
-
-* Maximum flexibility
-* Suitable for custom forward-pass logic
-
-Limitations:
-
-* Model structure is less explicit than with the Functional API
-* Serialization and visualization may require additional consideration
-* More implementation responsibility is placed on the developer
+`tf.data.AUTOTUNE` and `prefetch()` were also used to improve the efficiency of the input pipeline during training.
 
 ---
 
-## 5. Model Compilation and Training
+## 4. Baseline CNN
 
-### Compile
+A basic CNN without Data Augmentation or regularization was first trained as the baseline model.
 
-Before training, three main components are configured.
+### Architecture
 
-| Component         | Purpose                    | Examples                                                            |
-| ----------------- | -------------------------- | ------------------------------------------------------------------- |
-| **Loss Function** | Measures prediction error  | `BinaryCrossentropy`, `CategoricalCrossentropy`, `MeanSquaredError` |
-| **Optimizer**     | Updates model parameters   | `SGD`, `RMSprop`, `Adam`, `Adagrad`                                 |
-| **Metrics**       | Measures model performance | `Accuracy`, `Precision`, `Recall`, `MAE`                            |
+```text
+Input (150 × 150 × 3)
+        ↓
+Rescaling
+        ↓
+Conv2D (32)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (64)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (128)
+        ↓
+MaxPooling2D
+        ↓
+Flatten
+        ↓
+Dense (128)
+        ↓
+Dense (3, Softmax)
+```
+
+### Compilation
 
 ```python
-model.compile(
+baseline_model.compile(
     optimizer="adam",
-    loss="categorical_crossentropy",
+    loss="sparse_categorical_crossentropy",
     metrics=["accuracy"]
 )
 ```
 
-### Training
+Because the class labels are represented as integer values rather than one-hot encoded vectors, `sparse_categorical_crossentropy` was used as the loss function.
+
+---
+
+## 5. Baseline Model Result
+
+The Baseline CNN performed well on the training and validation datasets but showed considerably weaker performance on the separate test dataset.
+
+| Model        | Test Loss | Test Accuracy |
+| ------------ | --------: | ------------: |
+| Baseline CNN |    1.7392 |    **78.49%** |
+
+This indicated that the baseline model had limited generalization ability.
+
+---
+
+## 6. Model Improvement
+
+Several techniques were applied to improve generalization performance.
+
+### Data Augmentation
 
 ```python
-history = model.fit(
-    inputs,
-    targets,
-    epochs=5,
-    batch_size=128,
-    validation_data=(val_inputs, val_targets)
+data_augmentation = keras.Sequential([
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
+    layers.RandomZoom(0.1)
+])
+```
+
+Data augmentation generates variations of the training images so that the model becomes less dependent on specific visual patterns.
+
+### Dropout
+
+```python
+layers.Dropout(0.5)
+```
+
+Dropout randomly disables a portion of the neurons during training to reduce overfitting.
+
+### EarlyStopping
+
+```python
+keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
 )
 ```
 
-Important training parameters:
+Training stops when the validation loss no longer improves, and the weights from the best epoch are restored.
 
-* **Epoch**: One complete pass through the training dataset.
-* **Batch Size**: Number of samples processed before updating model parameters.
-* **Validation Data**: Data used to evaluate generalization during training.
-
----
-
-## 6. Major Machine Learning Tasks
-
-### Binary Classification
-
-Example: IMDB movie review sentiment classification
-
-* **Output Layer**: `Dense(1, activation="sigmoid")`
-* **Loss Function**: `binary_crossentropy`
-* **Purpose**: Predict one of two classes.
-
-### Multi-Class Classification
-
-Example: Reuters news topic classification
-
-* **Output Layer**: `Dense(num_classes, activation="softmax")`
-* **Loss Function**: `categorical_crossentropy` or `sparse_categorical_crossentropy`
-* **Purpose**: Predict one class among multiple categories.
-
-### Regression
-
-Example: Housing price prediction
-
-* **Output Layer**: Usually a single neuron without an activation function.
-* **Loss Function**: `mean_squared_error`
-* **Metrics**: `mean_absolute_error`
-* **Preprocessing**: Feature normalization is often important.
-
----
-
-## 7. Validation and Generalization
-
-Model performance should be evaluated using data that was not directly used for training.
-
-### Validation Methods
-
-* **Hold-out Validation**
-* **K-Fold Cross-Validation**
-* **Training / Validation / Test Split**
-
-### Common Problems
-
-* **Overfitting**: Good training performance but poor validation performance.
-* **Underfitting**: Poor performance on both training and validation data.
-
-Common approaches for improving generalization include:
-
-* Regularization
-* Dropout
-* Early stopping
-* Data augmentation
-* Increasing training data
-
----
-
-## 8. Callbacks
-
-Callbacks allow additional operations to be performed during model training.
-
-### Common Callbacks
-
-* **`ModelCheckpoint`**: Saves the model or model weights during training.
-* **`EarlyStopping`**: Stops training when performance no longer improves.
-* **`LearningRateScheduler`**: Dynamically changes the learning rate.
-* **`ReduceLROnPlateau`**: Reduces the learning rate when a monitored metric stops improving.
+### ReduceLROnPlateau
 
 ```python
-callbacks = [
-    keras.callbacks.EarlyStopping(
-        monitor="val_loss",
-        patience=3
-    )
-]
-```
-
----
-
-## 9. Custom Metrics
-
-Custom metrics can be implemented by extending `keras.metrics.Metric`.
-
-```python
-class RootMeanSquaredError(keras.metrics.Metric):
-    def __init__(self, name="rmse", **kwargs):
-        super().__init__(name=name, **kwargs)
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        pass
-
-    def result(self):
-        pass
-
-    def reset_state(self):
-        pass
-```
-
-The main methods are:
-
-* **`update_state()`**: Updates internal metric states.
-* **`result()`**: Calculates the final metric value.
-* **`reset_state()`**: Resets stored states.
-
----
-
-## 10. Multi-Input and Multi-Output Models
-
-The Functional API can be used to construct models that process multiple types of data or generate multiple predictions.
-
-Examples:
-
-* Text + numerical features
-* Image + metadata
-* Classification + regression outputs
-
-```python
-model = keras.Model(
-    inputs=[input_a, input_b],
-    outputs=[output_a, output_b]
+keras.callbacks.ReduceLROnPlateau(
+    monitor="val_loss",
+    factor=0.5,
+    patience=2,
+    min_lr=1e-6
 )
 ```
 
-## 11. Convolutional Neural Networks
+The learning rate is reduced when validation loss stops improving.
 
-Convolutional Neural Networks (CNNs) are commonly used for image processing and computer vision tasks.
+### ModelCheckpoint
 
-### Conv2D
+`ModelCheckpoint` was used to save the model with the best validation loss during training.
 
-`Conv2D` applies convolutional filters to an image to extract spatial features such as edges, textures, and patterns.
+---
+
+## 7. Improved CNN
+
+The CNN structure itself was kept mostly identical to the baseline model so that the effects of augmentation and regularization could be compared more clearly.
+
+```text
+Input
+        ↓
+Data Augmentation
+        ↓
+Rescaling
+        ↓
+Conv2D (32)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (64)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (128)
+        ↓
+MaxPooling2D
+        ↓
+Flatten
+        ↓
+Dense (128)
+        ↓
+Dropout (0.5)
+        ↓
+Dense (3, Softmax)
+```
+
+---
+
+## 8. Model Performance Comparison
+
+| Model        |  Test Loss | Test Accuracy |
+| ------------ | ---------: | ------------: |
+| Baseline CNN |     1.7392 |        78.49% |
+| Improved CNN | **0.2013** |    **96.24%** |
+
+The Improved CNN increased test accuracy from **78.49% to 96.24%**, while substantially reducing test loss.
+
+This suggests that Data Augmentation, Dropout, and training callbacks improved the model's performance on the original test dataset.
+
+---
+
+## 9. Classification Report
+
+The Improved CNN was evaluated on 372 Kaggle test images.
+
+| Class             | Precision |   Recall | F1-score | Support |
+| ----------------- | --------: | -------: | -------: | ------: |
+| Paper             |      1.00 |     0.91 |     0.95 |     124 |
+| Rock              |      1.00 |     0.98 |     0.99 |     124 |
+| Scissors          |      0.90 |     1.00 |     0.95 |     124 |
+| **Accuracy**      |           |          | **0.96** | **372** |
+| **Macro Average** |  **0.97** | **0.96** | **0.96** | **372** |
+
+### Result Analysis
+
+#### Rock
+
+Rock showed the strongest classification performance.
+
+```text
+Precision : 1.00
+Recall    : 0.98
+F1-score  : 0.99
+```
+
+#### Paper
+
+Predictions classified as Paper were highly precise, although some actual Paper images were classified as other classes.
+
+```text
+Precision : 1.00
+Recall    : 0.91
+F1-score  : 0.95
+```
+
+#### Scissors
+
+All actual Scissors images were detected, but some images from other classes were incorrectly classified as Scissors.
+
+```text
+Precision : 0.90
+Recall    : 1.00
+F1-score  : 0.95
+```
+
+---
+
+## 10. Confusion Matrix
+
+A confusion matrix was generated using Scikit-learn.
 
 ```python
-layers.Conv2D(
-    32,
-    kernel_size=(3, 3),
-    activation="relu"
+cm = confusion_matrix(
+    y_true,
+    y_pred
 )
 ```
 
+This made it possible to analyze class-level prediction errors in addition to overall accuracy.
 
-This structure is useful when a single model needs to learn several related tasks or combine heterogeneous data sources.
+---
+
+## 11. Prediction Visualization
+
+Predictions from the test dataset were visualized with:
+
+```text
+Actual Class
+Predicted Class
+Prediction Confidence
+```
+
+This allowed both quantitative metrics and individual prediction results to be examined.
+
+---
+
+## 12. Real-World Generalization Test
+
+To test the model outside the original Kaggle dataset, I captured **15 new images** under real-world conditions.
+
+The dataset consisted of:
+
+* 5 Rock images
+* 5 Paper images
+* 5 Scissors images
+
+### Results
+
+| Class       | Correct |  Total |   Accuracy |
+| ----------- | ------: | -----: | ---------: |
+| Rock        |       2 |      5 |        40% |
+| Paper       |       1 |      5 |        20% |
+| Scissors    |       4 |      5 |        80% |
+| **Overall** |   **7** | **15** | **46.67%** |
+
+The model achieved **96.24% accuracy on the original Kaggle test dataset**, but only **46.67% accuracy on personally captured images**.
+
+```text
+Kaggle Test Accuracy
+96.24%
+
+        ↓
+
+Real-World Image Accuracy
+46.67%
+```
+
+This revealed a significant generalization gap between the original dataset and real-world images.
+
+Some incorrect predictions were also made with high confidence, indicating that the model could be highly confident even when its prediction was incorrect.
+
+Possible causes include:
+
+* Different backgrounds
+* Different lighting conditions
+* Camera angle changes
+* Hand orientation
+* Hand size and position within the image
+* Differences between the training image distribution and real-world images
+
+This suggests that the model may have learned not only the hand shapes themselves, but also visual patterns associated with the original dataset.
+
+---
+
+## 13. Model Saving
+
+The final Improved CNN was saved in Keras format.
+
+```python
+improved_model.save(
+    "/content/rps_cnn_model.keras"
+)
+```
+
+The saved model can be reused for future predictions without retraining.
+
+---
+
+## 14. What I Learned
+
+Through this project, I practiced:
+
+* Building CNN models with TensorFlow and Keras
+* Image feature extraction using `Conv2D`
+* Feature map reduction using `MaxPooling2D`
+* Multi-class image classification
+* Using a `Softmax` output layer
+* Using `sparse_categorical_crossentropy`
+* Training / Validation / Test dataset separation
+* Data Augmentation
+* Dropout regularization
+* EarlyStopping
+* ReduceLROnPlateau
+* ModelCheckpoint
+* Training and validation curve analysis
+* Precision, Recall, and F1-score evaluation
+* Confusion Matrix analysis
+* Saving and reusing trained models
+* Predicting multiple custom images
+* Evaluating model performance on out-of-distribution data
+* Identifying generalization problems and domain shift
+
+---
+
+## 15. Conclusion
+
+The Baseline CNN achieved **78.49% Test Accuracy** on the original test dataset.
+
+After applying Data Augmentation, Dropout, EarlyStopping, ReduceLROnPlateau, and ModelCheckpoint, the Improved CNN achieved **96.24% Test Accuracy** with a Test Loss of **0.2013**.
+
+However, when the model was evaluated on 15 personally captured images, accuracy decreased to **46.67%**.
+
+This experiment showed that strong performance on an internal test dataset does not necessarily guarantee strong performance in a different real-world environment.
+
+The project therefore progressed beyond simply improving CNN accuracy and demonstrated the importance of:
+
+* Evaluating models on unseen environments
+* Detecting domain shift
+* Examining incorrect high-confidence predictions
+* Considering dataset diversity when developing image classification systems
+
+Through this project, I practiced the complete image classification workflow from **model construction and training to regularization, evaluation, real-world testing, and generalization analysis**.
+
+---
+
+## 16. Try It Yourself
+
+You can test the trained model with your own Rock, Paper, or Scissors images in Google Colab.
+
+1. Open the project notebook in Google Colab.
+2. Run the notebook cells in order.
+3. Go to the final cell: `Predict Multiple Custom Images`.
+4. Run the cell and upload one or more images.
+5. The model will display the predicted class, confidence score, and probability for each class.
+
+Example:
+
+```text id="z67ij4"
+Upload Image
+     ↓
+Resize to 150 × 150
+     ↓
+CNN Model
+     ↓
+Prediction
+     ↓
+Rock / Paper / Scissors
+```
+
+The final cell supports multiple image uploads at once.
+
+```python id="y67j57"
+uploaded = files.upload()
+```
+
+After uploading your images, the model will display:
+
+```text id="87kejx"
+Prediction
+Confidence
+Paper Probability
+Rock Probability
+Scissors Probability
+```
+
+> The model may perform differently on real-world images because backgrounds, lighting, camera angles, and hand positions can differ from the original training dataset.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Rx042ATmA4qHK3Dh_s7ywVLUEqZcqPPj?hl=ko)
+
 
 </details>
 
 <details>
 <summary>KOR (한국어 버전)</summary>
 
-# 케라스
-이 Repository에는 딥러닝 모델의 구성, 학습, 평가 및 활용에 필요한 TensorFlow와 Keras의 주요 개념을 정리했습니다.
+# 가위바위보 CNN 이미지 분류
 
-## 1. TensorFlow와 Keras
+TensorFlow와 Keras를 사용하여 Rock, Paper, Scissors 이미지를 분류하는 CNN(Convolutional Neural Network) 모델을 구축한 프로젝트입니다.
 
-### TensorFlow
+먼저 기본 CNN을 Baseline 모델로 학습한 뒤, **Data Augmentation, Dropout, EarlyStopping, ReduceLROnPlateau, ModelCheckpoint**를 적용하여 모델을 개선했습니다.
 
-TensorFlow는 수치 연산과 딥러닝을 위한 저수준 연산 기능을 제공합니다.
-
-* **텐서(Tensor)**: 수치 데이터를 표현하는 다차원 데이터 구조
-* **텐서 연산**: `add`, `matmul`, 활성화 함수 등의 수학적 연산
-* **자동 미분**: 신경망 학습에 필요한 그래디언트를 자동으로 계산
-* **`tf.Variable`**: 학습 가능한 모델 파라미터처럼 변경 가능한 값을 저장
-
-### Keras
-
-Keras는 신경망 모델을 구성하고 학습하기 위한 고수준 딥러닝 API입니다.
-
-* **Layer**: 신경망을 구성하는 기본 단위
-* **Model**: 여러 레이어를 하나의 학습 가능한 구조로 구성
-* **Loss Function**: 예측 오차 측정
-* **Optimizer**: 그래디언트를 이용하여 모델 파라미터 업데이트
-* **Metric**: 모델 성능 평가
-* **Callback**: 학습 과정 모니터링 및 제어
+또한 Kaggle의 기존 Test Dataset뿐만 아니라 **직접 촬영한 이미지 15장**을 이용하여 실제 환경에서도 모델이 일반화되는지 추가로 검증했습니다.
 
 ---
 
-## 2. Tensor 연산
+## 1. 프로젝트 개요
 
-### Tensor 생성
+### 목표
 
-```python
-tf.ones(shape=(2, 1))
-tf.zeros(shape=(2, 1))
-tf.random.normal(shape=(2, 2))
-tf.random.uniform(shape=(2, 2))
+입력 이미지를 다음 3개의 클래스로 분류하는 모델을 구축하는 것이 목표입니다.
+
+* `paper`
+* `rock`
+* `scissors`
+
+단순히 학습 정확도를 높이는 것보다 다음과 같은 전체 이미지 분류 과정을 실습하는 데 중점을 두었습니다.
+
+```text
+데이터셋
+   ↓
+기본 CNN
+   ↓
+모델 평가
+   ↓
+일반화 성능 개선
+   ↓
+개선 CNN
+   ↓
+Kaggle 테스트
+   ↓
+실제 촬영 이미지 테스트
 ```
 
-### Variable
+특히 기존 Test Dataset에서 높은 성능을 기록한 모델이 실제 환경에서 촬영한 새로운 이미지에서도 동일하게 동작하는지를 확인했습니다.
 
-```python
-x = tf.Variable(initial_value=3.0)
+### 개발 환경
 
-x.assign(5.0)
-x.assign_add(1.0)
-x.assign_sub(1.0)
-```
-
-* `tf.Variable`은 학습 과정에서 변경되어야 하는 값을 저장할 때 사용
-* 신경망의 가중치와 같은 학습 파라미터가 대표적인 예
-
-### 자동 미분
-
-```python
-x = tf.Variable(3.0)
-
-with tf.GradientTape() as tape:
-    y = x ** 2
-
-gradient = tape.gradient(y, x)
-```
-
-* **`tf.GradientTape()`**: 그래디언트 계산에 필요한 연산을 기록
-* 학습 가능한 변수는 자동으로 추적
-* 상수 텐서는 `tape.watch()`를 이용하여 직접 추적 가능
-* 중첩하여 사용하면 고차 도함수 계산 가능
+* Google Colab
+* Python
+* TensorFlow
+* Keras
+* NumPy
+* Matplotlib
+* Scikit-learn
+* KaggleHub
 
 ---
 
-## 3. Keras Layer
+## 2. 데이터셋
 
-Layer는 하나 이상의 텐서를 입력받아 새로운 텐서를 출력하는 데이터 처리 단위입니다.
+Kaggle의 Rock Paper Scissors Dataset을 사용했습니다.
 
-### 대표적인 Layer
-
-| 입력 형태                                | 대표 Layer       |
-| ------------------------------------ | -------------- |
-| `(samples, features)`                | `Dense`        |
-| `(samples, timesteps, features)`     | RNN / `Conv1D` |
-| `(samples, height, width, channels)` | `Conv2D`       |
-
-### 사용자 정의 Layer
-
-```python
-class SimpleDense(keras.layers.Layer):
-    def __init__(self, units, activation=None):
-        super().__init__()
-        self.units = units
-        self.activation = activation
-
-    def build(self, input_shape):
-        self.w = self.add_weight(
-            shape=(input_shape[-1], self.units),
-            initializer="random_normal"
-        )
-        self.b = self.add_weight(
-            shape=(self.units,),
-            initializer="zeros"
-        )
-
-    def call(self, inputs):
-        output = tf.matmul(inputs, self.w) + self.b
-        return output
+```text
+sanikamal/rock-paper-scissors-dataset
 ```
 
-주요 메서드:
+모든 이미지는 다음 크기로 조정했습니다.
 
-* **`__init__()`**: Layer 설정 정의
-* **`build()`**: 학습 가능한 파라미터 생성
-* **`call()`**: 순전파 연산 정의
+```text
+150 × 150 × 3
+```
+
+데이터 구성:
+
+```text
+학습용 데이터
+    │
+    ├── 80% Training
+    │
+    └── 20% Validation
+
+테스트 데이터
+    └── 별도의 Test Images
+```
+
+주요 설정:
+
+```python
+IMG_SIZE = (150, 150)
+BATCH_SIZE = 32
+SEED = 42
+```
+
+Keras의 `image_dataset_from_directory()`를 사용하여 이미지 폴더에서 데이터셋을 생성했습니다.
 
 ---
 
-## 4. Keras Model 구성 방법
+## 3. 데이터 전처리
 
-Keras에서는 크게 세 가지 방법으로 모델을 구성할 수 있습니다.
-
-| 방법                    | 특징                      | 주요 용도           |
-| --------------------- | ----------------------- | --------------- |
-| **Sequential API**    | Layer를 순차적으로 연결         | 단순한 신경망         |
-| **Functional API**    | 계산 그래프 형태로 모델 구성        | 다중 입출력 및 복잡한 모델 |
-| **Model Subclassing** | Python 코드로 모델 동작을 직접 정의 | 사용자 정의 모델       |
-
-### 4.1 Sequential API
+입력 이미지의 픽셀 값은 모델 내부에서 다음과 같이 정규화했습니다.
 
 ```python
-model = keras.Sequential([
-    layers.Dense(64, activation="relu"),
-    layers.Dense(10, activation="softmax")
-])
+layers.Rescaling(1.0 / 255)
 ```
 
-장점:
+이를 통해 픽셀 범위를 다음과 같이 변환했습니다.
 
-* 구조가 단순하고 직관적
-* 빠르게 모델 구성 가능
-
-한계:
-
-* 순차적인 Layer 구조에 적합
-* 복잡한 분기 구조에는 적합하지 않음
-
-### 4.2 Functional API
-
-```python
-inputs = keras.Input(shape=(3,))
-x = layers.Dense(64, activation="relu")(inputs)
-outputs = layers.Dense(10, activation="softmax")(x)
-
-model = keras.Model(inputs=inputs, outputs=outputs)
+```text
+0 ~ 255
+   ↓
+0 ~ 1
 ```
 
-장점:
-
-* 다중 입력 및 출력 지원
-* Layer 공유 가능
-* 비선형적인 계산 그래프 구성 가능
-* 모델 구조 시각화가 용이
-
-### 4.3 Model Subclassing
-
-```python
-class CustomModel(keras.Model):
-    def __init__(self):
-        super().__init__()
-        self.dense1 = layers.Dense(64, activation="relu")
-        self.dense2 = layers.Dense(10, activation="softmax")
-
-    def call(self, inputs):
-        x = self.dense1(inputs)
-        return self.dense2(x)
-```
-
-장점:
-
-* 높은 자유도
-* 복잡한 순전파 로직 구현 가능
-
-한계:
-
-* Functional API보다 모델 구조가 명시적이지 않음
-* 직렬화 및 시각화 시 추가 처리가 필요할 수 있음
-* 구현해야 하는 부분이 많음
+또한 `tf.data.AUTOTUNE`과 `prefetch()`를 사용하여 학습 과정에서 데이터가 보다 효율적으로 공급되도록 구성했습니다.
 
 ---
 
-## 5. Model Compile 및 Training
+## 4. 기본 CNN 모델
 
-### Compile
+먼저 Data Augmentation이나 Regularization을 적용하지 않은 기본 CNN을 Baseline 모델로 구성했습니다.
 
-모델 학습 전 세 가지 주요 요소를 설정합니다.
+### 모델 구조
 
-| 구성 요소             | 역할           | 예시                                                                  |
-| ----------------- | ------------ | ------------------------------------------------------------------- |
-| **Loss Function** | 예측 오차 측정     | `BinaryCrossentropy`, `CategoricalCrossentropy`, `MeanSquaredError` |
-| **Optimizer**     | 모델 파라미터 업데이트 | `SGD`, `RMSprop`, `Adam`, `Adagrad`                                 |
-| **Metric**        | 모델 성능 평가     | `Accuracy`, `Precision`, `Recall`, `MAE`                            |
+```text
+Input (150 × 150 × 3)
+        ↓
+Rescaling
+        ↓
+Conv2D (32)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (64)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (128)
+        ↓
+MaxPooling2D
+        ↓
+Flatten
+        ↓
+Dense (128)
+        ↓
+Dense (3, Softmax)
+```
+
+### 모델 컴파일
 
 ```python
-model.compile(
+baseline_model.compile(
     optimizer="adam",
-    loss="categorical_crossentropy",
+    loss="sparse_categorical_crossentropy",
     metrics=["accuracy"]
 )
 ```
 
-### Training
+클래스 라벨이 One-Hot Encoding이 아닌 정수 형태이므로 `sparse_categorical_crossentropy`를 Loss Function으로 사용했습니다.
+
+---
+
+## 5. 기본 모델 결과
+
+Baseline CNN은 Training 및 Validation Dataset에서는 높은 성능을 보였지만 별도의 Test Dataset에서는 성능이 감소했습니다.
+
+| 모델           | Test Loss | Test Accuracy |
+| ------------ | --------: | ------------: |
+| Baseline CNN |    1.7392 |    **78.49%** |
+
+이를 통해 Baseline 모델이 학습 데이터와 유사한 환경에는 잘 맞지만 새로운 데이터에 대한 **일반화 성능이 부족한 문제**를 확인했습니다.
+
+---
+
+## 6. 모델 개선
+
+일반화 성능을 높이기 위해 여러 방법을 적용했습니다.
+
+### 데이터 증강
 
 ```python
-history = model.fit(
-    inputs,
-    targets,
-    epochs=5,
-    batch_size=128,
-    validation_data=(val_inputs, val_targets)
+data_augmentation = keras.Sequential([
+    layers.RandomFlip("horizontal"),
+    layers.RandomRotation(0.1),
+    layers.RandomZoom(0.1)
+])
+```
+
+학습 이미지에 다양한 변형을 적용하여 모델이 특정 이미지 패턴에 지나치게 의존하는 것을 줄였습니다.
+
+### 드롭아웃
+
+```python
+layers.Dropout(0.5)
+```
+
+학습 과정에서 일부 뉴런을 무작위로 비활성화하여 Overfitting을 줄였습니다.
+
+### 조기 종료
+
+```python
+keras.callbacks.EarlyStopping(
+    monitor="val_loss",
+    patience=5,
+    restore_best_weights=True
 )
 ```
 
-주요 학습 요소:
+Validation Loss가 더 이상 개선되지 않을 경우 학습을 중단하고 가장 좋은 시점의 Weight를 복원했습니다.
 
-* **Epoch**: 전체 학습 데이터를 한 번 학습하는 과정
-* **Batch Size**: 한 번의 파라미터 업데이트에 사용하는 데이터 수
-* **Validation Data**: 학습 중 일반화 성능을 평가하기 위한 데이터
+### 학습률 감소
 
----
+```python
+keras.callbacks.ReduceLROnPlateau(
+    monitor="val_loss",
+    factor=0.5,
+    patience=2,
+    min_lr=1e-6
+)
+```
 
-## 6. 주요 머신러닝 문제
+Validation Loss가 개선되지 않을 경우 Learning Rate를 감소시켜 보다 세밀한 학습이 가능하도록 했습니다.
 
-### 이진 분류
+### 최적 모델 저장
 
-예시: IMDB 영화 리뷰 감성 분류
-
-* **출력 Layer**: `Dense(1, activation="sigmoid")`
-* **Loss Function**: `binary_crossentropy`
-* **목적**: 두 개 클래스 중 하나를 예측
-
-### 다중 클래스 분류
-
-예시: Reuters 뉴스 주제 분류
-
-* **출력 Layer**: `Dense(num_classes, activation="softmax")`
-* **Loss Function**: `categorical_crossentropy` 또는 `sparse_categorical_crossentropy`
-* **목적**: 여러 클래스 중 하나를 예측
-
-### 회귀
-
-예시: 주택 가격 예측
-
-* **출력 Layer**: 일반적으로 활성화 함수가 없는 하나의 출력 뉴런
-* **Loss Function**: `mean_squared_error`
-* **Metric**: `mean_absolute_error`
-* **전처리**: 특성 정규화가 중요한 경우가 많음
+`ModelCheckpoint`를 사용하여 Validation Loss가 가장 낮은 모델을 저장하도록 구성했습니다.
 
 ---
 
-## 7. 검증과 일반화
+## 7. 개선 CNN 모델
 
-모델의 성능은 학습에 직접 사용하지 않은 데이터를 이용하여 평가해야 합니다.
+Baseline CNN과의 비교를 명확하게 하기 위해 CNN의 기본적인 구조는 최대한 동일하게 유지했습니다.
 
-### 검증 방법
+```text
+Input
+        ↓
+Data Augmentation
+        ↓
+Rescaling
+        ↓
+Conv2D (32)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (64)
+        ↓
+MaxPooling2D
+        ↓
+Conv2D (128)
+        ↓
+MaxPooling2D
+        ↓
+Flatten
+        ↓
+Dense (128)
+        ↓
+Dropout (0.5)
+        ↓
+Dense (3, Softmax)
+```
 
-* **Hold-out Validation**
-* **K-Fold Cross-Validation**
-* **Training / Validation / Test Split**
+이를 통해 CNN 구조 자체의 변화보다는 **Data Augmentation과 Regularization이 일반화 성능에 미치는 영향**을 비교했습니다.
 
-### 주요 문제
+---
 
-* **Overfitting**: 학습 데이터 성능은 높지만 검증 데이터 성능이 낮은 상태
-* **Underfitting**: 학습 데이터와 검증 데이터 모두에서 성능이 낮은 상태
+## 8. 모델 성능 비교
 
-일반화 성능을 높이는 대표적인 방법:
+| 모델           |  Test Loss | Test Accuracy |
+| ------------ | ---------: | ------------: |
+| Baseline CNN |     1.7392 |        78.49% |
+| Improved CNN | **0.2013** |    **96.24%** |
 
-* Regularization
-* Dropout
-* Early Stopping
+Improved CNN은 Baseline CNN보다 Test Loss가 크게 감소했고, Test Accuracy는 **78.49%에서 96.24%까지 증가**했습니다.
+
+기존 Kaggle Test Dataset에서는 Data Augmentation, Dropout 및 Callback을 이용한 학습 전략이 일반화 성능 개선에 효과적이었습니다.
+
+---
+
+## 9. 분류 성능 평가
+
+Improved CNN을 Kaggle Test Image 372장에 대해 평가했습니다.
+
+| 클래스               | Precision |   Recall | F1-score | Support |
+| ----------------- | --------: | -------: | -------: | ------: |
+| Paper             |      1.00 |     0.91 |     0.95 |     124 |
+| Rock              |      1.00 |     0.98 |     0.99 |     124 |
+| Scissors          |      0.90 |     1.00 |     0.95 |     124 |
+| **Accuracy**      |           |          | **0.96** | **372** |
+| **Macro Average** |  **0.97** | **0.96** | **0.96** | **372** |
+
+### 결과 분석
+
+#### 바위
+
+세 클래스 중 가장 안정적인 분류 성능을 나타냈습니다.
+
+```text
+Precision : 1.00
+Recall    : 0.98
+F1-score  : 0.99
+```
+
+#### 보
+
+Paper로 분류한 이미지의 정확도는 높았지만 일부 실제 Paper 이미지를 다른 클래스로 분류하는 경우가 있었습니다.
+
+```text
+Precision : 1.00
+Recall    : 0.91
+F1-score  : 0.95
+```
+
+#### 가위
+
+실제 Scissors 이미지는 모두 탐지했지만 일부 다른 클래스 이미지를 Scissors로 잘못 분류하는 경우가 있었습니다.
+
+```text
+Precision : 0.90
+Recall    : 1.00
+F1-score  : 0.95
+```
+
+---
+
+## 10. 혼동 행렬
+
+Scikit-learn을 사용하여 Confusion Matrix를 생성했습니다.
+
+```python
+cm = confusion_matrix(
+    y_true,
+    y_pred
+)
+```
+
+이를 통해 전체 Accuracy뿐만 아니라 클래스별 오분류 패턴도 확인했습니다.
+
+---
+
+## 11. 예측 결과 시각화
+
+Test Dataset의 각 이미지에 대해 다음 정보를 함께 시각화했습니다.
+
+```text
+실제 클래스
+예측 클래스
+예측 신뢰도
+```
+
+이를 통해 정량적인 평가 결과뿐만 아니라 개별 이미지에 대한 모델의 실제 예측 결과도 확인했습니다.
+
+---
+
+## 12. 실제 촬영 이미지 일반화 테스트
+
+Kaggle Dataset 이외의 환경에서도 모델이 제대로 작동하는지 확인하기 위해 스마트폰으로 직접 **15장의 이미지**를 촬영했습니다.
+
+테스트 이미지는 다음과 같이 구성했습니다.
+
+* Rock 5장
+* Paper 5장
+* Scissors 5장
+
+### 테스트 결과
+
+| 클래스      |    정답 |     전체 |        정확도 |
+| -------- | ----: | -----: | ---------: |
+| Rock     |     2 |      5 |        40% |
+| Paper    |     1 |      5 |        20% |
+| Scissors |     4 |      5 |        80% |
+| **전체**   | **7** | **15** | **46.67%** |
+
+기존 Kaggle Test Dataset에서는 **96.24%의 Accuracy**를 기록했지만 직접 촬영한 이미지에서는 **46.67%**까지 감소했습니다.
+
+```text
+Kaggle Test Accuracy
+96.24%
+
+        ↓
+
+실제 촬영 이미지 Accuracy
+46.67%
+```
+
+이는 기존 데이터셋과 실제 촬영 환경 사이에 상당한 **일반화 성능 차이**가 존재한다는 것을 보여줍니다.
+
+또한 일부 잘못된 예측에서도 높은 Confidence를 나타냈습니다.
+
+즉 모델이 잘못된 판단을 하면서도 높은 확률로 특정 클래스를 예측하는 경우가 존재했습니다.
+
+이러한 결과의 원인으로 다음과 같은 차이를 고려할 수 있습니다.
+
+* 배경 차이
+* 조명 변화
+* 카메라 각도
+* 손의 방향
+* 이미지 내 손의 크기와 위치
+* 학습 데이터와 실제 이미지 사이의 데이터 분포 차이
+
+따라서 모델이 손 모양 자체뿐만 아니라 기존 데이터셋의 배경이나 촬영 환경과 같은 시각적 특징에도 일정 부분 의존했을 가능성이 있습니다.
+
+---
+
+## 13. 모델 저장
+
+최종 Improved CNN은 Keras 모델 형식으로 저장했습니다.
+
+```python
+improved_model.save(
+    "/content/rps_cnn_model.keras"
+)
+```
+
+저장된 모델은 다시 학습할 필요 없이 이후 Prediction에 재사용할 수 있습니다.
+
+---
+
+## 14. 학습한 내용
+
+이 프로젝트를 통해 다음 내용을 실제 이미지 분류 문제에 적용했습니다.
+
+* TensorFlow / Keras 기반 CNN 모델 구축
+* `Conv2D`를 이용한 이미지 특징 추출
+* `MaxPooling2D`를 이용한 Feature Map 축소
+* 다중 클래스 이미지 분류
+* `Softmax` 출력층 구성
+* `sparse_categorical_crossentropy` Loss Function 사용
+* Training / Validation / Test Dataset 분리
 * Data Augmentation
-* 학습 데이터 증가
+* Dropout을 이용한 Regularization
+* EarlyStopping
+* ReduceLROnPlateau
+* ModelCheckpoint
+* Training / Validation Curve 분석
+* Precision / Recall / F1-score 평가
+* Confusion Matrix 분석
+* 학습 모델 저장 및 재사용
+* 여러 개의 새로운 이미지 일괄 예측
+* 기존 데이터 분포와 다른 이미지에 대한 모델 평가
+* 일반화 문제와 Domain Shift 확인
 
 ---
 
-## 8. Callback
+## 15. 결론
 
-Callback은 모델 학습 과정에서 추가적인 작업을 수행하도록 하는 기능입니다.
+Baseline CNN은 기존 Test Dataset에서 **78.49%의 Accuracy**를 기록했습니다.
 
-### 주요 Callback
+이후 Data Augmentation, Dropout, EarlyStopping, ReduceLROnPlateau, ModelCheckpoint를 적용하여 개선한 CNN은 **96.24%의 Test Accuracy와 0.2013의 Test Loss**를 기록했습니다.
 
-* **`ModelCheckpoint`**: 학습 중 모델 또는 가중치 저장
-* **`EarlyStopping`**: 성능 개선이 멈추면 학습 조기 종료
-* **`LearningRateScheduler`**: 학습률을 동적으로 변경
-* **`ReduceLROnPlateau`**: 특정 지표가 개선되지 않을 때 학습률 감소
+하지만 모델을 직접 촬영한 이미지 15장에 적용한 결과 정확도는 **46.67%**까지 감소했습니다.
 
-```python
-callbacks = [
-    keras.callbacks.EarlyStopping(
-        monitor="val_loss",
-        patience=3
-    )
-]
-```
+이를 통해 기존 Test Dataset에서 높은 정확도를 기록하는 것만으로는 실제 환경에서도 동일한 성능을 보장할 수 없다는 것을 확인했습니다.
 
----
+특히 이번 프로젝트에서는 단순히 CNN의 정확도를 높이는 것에서 끝나지 않고 다음 문제까지 확인할 수 있었습니다.
 
-## 9. 사용자 정의 Metric
+* 새로운 환경에서의 모델 성능 저하
+* 데이터 분포 차이에 따른 Domain Shift
+* 높은 Confidence를 가진 오분류
+* 실제 환경을 고려한 데이터 다양성의 중요성
 
-`keras.metrics.Metric`을 상속하여 사용자 정의 평가 지표를 만들 수 있습니다.
-
-```python
-class RootMeanSquaredError(keras.metrics.Metric):
-    def __init__(self, name="rmse", **kwargs):
-        super().__init__(name=name, **kwargs)
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        pass
-
-    def result(self):
-        pass
-
-    def reset_state(self):
-        pass
-```
-
-주요 메서드:
-
-* **`update_state()`**: Metric 내부 상태 업데이트
-* **`result()`**: 최종 Metric 값 계산
-* **`reset_state()`**: 저장된 상태 초기화
+따라서 이 프로젝트를 통해 **CNN 모델 구축 → 학습 → 일반화 성능 개선 → 평가 → 실제 이미지 테스트 → 일반화 문제 분석**까지 이어지는 전체 이미지 분류 과정을 실습했습니다.
 
 ---
 
-## 10. 다중 입력 및 다중 출력 모델
+## 16. 직접 테스트해보기
 
-Functional API를 사용하면 서로 다른 여러 데이터를 입력받거나 여러 종류의 예측값을 출력하는 모델을 만들 수 있습니다.
+Google Colab에서 직접 촬영한 가위, 바위, 보 이미지를 업로드하여 모델을 테스트할 수 있습니다.
 
-예시:
+1. 프로젝트 Notebook을 Google Colab에서 엽니다.
+2. 위에서부터 셀을 순서대로 실행합니다.
+3. 마지막의 `Predict Multiple Custom Images` 셀로 이동합니다.
+4. 해당 셀을 실행한 뒤 하나 이상의 이미지를 업로드합니다.
+5. 모델이 각 이미지의 예측 결과와 Confidence, 클래스별 확률을 출력합니다.
 
-* 텍스트 + 수치형 데이터
-* 이미지 + 메타데이터
-* 분류 + 회귀 출력
+동작 과정:
 
-```python
-model = keras.Model(
-    inputs=[input_a, input_b],
-    outputs=[output_a, output_b]
-)
+```text id="18vhep"
+이미지 업로드
+     ↓
+150 × 150 크기로 변환
+     ↓
+CNN 모델
+     ↓
+예측
+     ↓
+Rock / Paper / Scissors
 ```
 
-## 11. 합성곱 신경망 (Convolutional Neural Networks)
+마지막 셀에서는 여러 장의 이미지를 한 번에 업로드할 수 있습니다.
 
-합성곱 신경망(CNN)은 이미지 처리와 컴퓨터 비전 분야에서 주로 사용되는 신경망 구조입니다.
-
-### Conv2D
-
-`Conv2D`는 이미지에 합성곱 필터를 적용하여 모서리, 질감, 형태와 같은 공간적 특징을 추출합니다.
-
-```python
-layers.Conv2D(
-    32,
-    kernel_size=(3, 3),
-    activation="relu"
-)
+```python id="mj5gjh"
+uploaded = files.upload()
 ```
 
+이미지를 업로드하면 다음 정보를 확인할 수 있습니다.
 
-하나의 모델에서 여러 종류의 데이터를 함께 처리하거나 서로 연관된 여러 작업을 동시에 학습할 때 활용할 수 있습니다.
+```text id="j5x7l6"
+예측 클래스
+예측 신뢰도
+Paper 확률
+Rock 확률
+Scissors 확률
+```
+
+> 실제 촬영 이미지는 학습 데이터와 배경, 조명, 촬영 각도, 손의 위치 등이 다르기 때문에 기존 Test Dataset보다 성능이 낮게 나타날 수 있습니다.
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Rx042ATmA4qHK3Dh_s7ywVLUEqZcqPPj?hl=ko)
 
 </details>
