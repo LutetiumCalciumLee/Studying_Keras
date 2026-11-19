@@ -502,7 +502,7 @@ Scissors Probability
 
 </details>
 
-<details>
+<details open>
 <summary>KOR (한국어 버전)</summary>
 
 # 가위바위보 CNN 이미지 분류
